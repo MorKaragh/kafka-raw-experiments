@@ -1,0 +1,9 @@
+{"namespace": "data.avro",
+  "type": "record",
+  "name": "DataPiece",
+  "fields": [
+    {"name": "name", "type": "string"},
+    {"name": "intval",  "type": ["int", "null"]},
+    {"name": "textval", "type": ["string", "null"]}
+  ]
+}
