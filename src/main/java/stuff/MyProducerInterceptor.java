@@ -1,3 +1,5 @@
+package stuff;
+
 import data.avro.DataPiece;
 import org.apache.kafka.clients.producer.ProducerInterceptor;
 import org.apache.kafka.clients.producer.ProducerRecord;

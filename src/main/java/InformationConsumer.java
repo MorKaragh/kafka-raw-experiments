@@ -34,8 +34,7 @@ public class InformationConsumer {
         try (KafkaConsumer<String, DataPiece> consumer = new KafkaConsumer<>(props)) {
             consumer.assign(List.of(topicPartition));
             logger.info("Consumer group current offset:" + consumer.position(topicPartition));
-            consumer.seekToEnd(List.of(topicPartition));
-            logger.info("Last offset in topic: " + consumer.position(topicPartition));
+            logger.info("Last offset in topic: " + consumer.endOffsets(List.of(topicPartition)));
         }
     }
 

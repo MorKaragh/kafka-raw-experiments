@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -42,7 +43,15 @@ public class MyConsumer {
             while (keepConsuming) {
                 ConsumerRecords<String, DataPiece> records = consumer.poll(Duration.ofMillis(200));
                 for (ConsumerRecord<String, DataPiece> record : records) {
-                    log.info(String.format("NEW MESSAGE! offset = %d value = %s", record.offset(), record.value().getName()));
+
+                    String messageTime = "";
+                    if (record.headers().lastHeader("currtime") != null) {
+                        messageTime = new String(record.headers().lastHeader("currtime").value());
+                    }
+
+                    log.info(String.format("NEW MESSAGE! offset = %d value = %s time = %s",
+                            record.offset(), record.value().getName(), messageTime));
+
                     consumer.commitSync();
                 }
             }
