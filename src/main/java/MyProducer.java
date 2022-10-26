@@ -22,21 +22,45 @@ public class MyProducer {
 
     public static void main(String[] args) {
         Properties kaProps = new Properties();
+
+        // даже если у нас много брокеров - тут можно указать один. Он расскажет нам об остальных.
         kaProps.put("bootstrap.servers", "localhost:9092");
+
+        // сериализация. Упаковываем наше сообщение в желаемый формат.
         kaProps.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         kaProps.put("value.serializer", "io.confluent.kafka.serializers.KafkaAvroSerializer");
+
+        // я игрался с форматом Avro, эти конфиги нужны для него
         kaProps.put("schema.registry.url", "http://localhost:8081");
+
+        // перехватчик сообщений. В нем буду всем объектам переводить name в uppercase
         kaProps.put("interceptor.classes", MyProducerInterceptor.class.getName());
+
+        // этой штукой будем определять в какую партицию отправить сообщение
         kaProps.put("partitioner.class", StupidPartitioner.class.getName());
 
-        try (Producer<String, DataPiece> producer = new KafkaProducer<>(kaProps)) {
-            int i = 0;
-            while (true) {
+        // чтобы не дублировались сообщения делаем producer идемпотентным
+        kaProps.put("enable.idempotence", "true");
 
-                String key = "RecKey";
+        // прежде чем записать себе успех дождёмся ответа ОК от всех реплик
+        kaProps.put("acks", "all");
+
+        // если что-то пошло не так - попробуем ещё три раза
+        kaProps.put("retries", "3");
+
+        // будем отправлять по одному сообщению за раз, т.к. у нас есть retries, и мы хотим сохранить порядок сообщений
+        kaProps.put("max.in.flight.requests.per.connection", "1");
+
+        try (Producer<String, DataPiece> producer = new KafkaProducer<>(kaProps)) {
+            // цикл тут нужет только затем, чтобы отправить сто сообщений подряд
+            for (int i = 0; i < 100; i++) {
+
+                // наполнение сообщения
+                String key = "RecKey " + i % 10;
                 DataPiece value = new DataPiece("Name " + i, i, UUID.randomUUID().toString());
                 List<Header> headers = List.of(new RecordHeader("currtime", String.valueOf(System.currentTimeMillis()).getBytes()));
 
+                // объект сообщения
                 ProducerRecord<String, DataPiece> record = new ProducerRecord<>(
                         "TutorialTopic",
                         null,
@@ -44,11 +68,16 @@ public class MyProducer {
                         value,
                         headers);
 
+                // после отправки сообщения хочу вызвать callback
+                ProducerCallback callback = new ProducerCallback();
 
-                RecordMetadata recordMetadata = producer.send(record, new ProducerCallback()).get();
+                // отправка сообщения происходит асинхронно, но я у возвращаемого Future дёрну get()
+                RecordMetadata recordMetadata = producer.send(record, callback).get();
+
+                // после отправки нам вернутся метаданные о том, как и куда всё это легло
                 log.info("RECORD SENT! offset=" + recordMetadata.offset() + " partition=" + recordMetadata.partition());
-                Thread.sleep(2000);
             }
+
         } catch (InterruptedException | ExecutionException e) {
             log.error(e.getMessage(), e);
         }
